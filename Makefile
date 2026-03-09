@@ -30,10 +30,6 @@ setup:
 	@echo "  3. Run: make migrate-up"
 	@echo "  4. Run: make run"
 
-.PHONY: run
-run:
-	go run ./cmd/server/main.go
-
 .PHONY: dev-up
 dev-up:
 	docker compose -f docker-compose.dev.yaml up -d postgres redis
