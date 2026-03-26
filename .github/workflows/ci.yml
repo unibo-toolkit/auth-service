@@ -1,0 +1,126 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [dev, main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/unibo-toolkit/${{ github.event.repository.name }}
+  SERVICE_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Push dev tag
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:dev
+          docker push ${{ env.IMAGE_NAME }}:dev
+
+      - name: Determine version bump
+        if: github.ref == 'refs/heads/main'
+        id: bump
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          if echo "$MSG" | grep -q "#none"; then
+            echo "type=none" >> $GITHUB_OUTPUT
+          elif echo "$MSG" | grep -q "#major"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$MSG" | grep -q "#minor"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get latest tag
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type != 'none'
+        id: latest_tag
+        run: |
+          TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$TAG" ]; then TAG="v0.0.0"; fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type != 'none'
+        id: new_version
+        run: |
+          TAG="${{ steps.latest_tag.outputs.tag }}"
+          TAG="${TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$TAG"
+          case "${{ steps.bump.outputs.type }}" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
+      - name: Create git tag
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type != 'none'
+        run: |
+          git tag ${{ steps.new_version.outputs.version }}
+          git push origin ${{ steps.new_version.outputs.version }}
+
+      - name: Push versioned + latest tags
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type != 'none'
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:${{ steps.new_version.outputs.version }}
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:${{ steps.new_version.outputs.version }}
+          docker push ${{ env.IMAGE_NAME }}:latest
+
+      - name: Determine infra target
+        if: github.ref == 'refs/heads/main'
+        id: target
+        run: |
+          if [ "${{ env.SERVICE_NAME }}" = "frontend" ]; then
+            echo "kustomization=frontend/kustomization.yaml" >> $GITHUB_OUTPUT
+            echo "deployment=frontend/deployment.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "kustomization=backend/kustomization.yaml" >> $GITHUB_OUTPUT
+            echo "deployment=backend/${{ env.SERVICE_NAME }}/deployment.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy — update image tag
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type != 'none'
+        run: |
+          git clone https://${{ secrets.INFRA_TOKEN_OWNER }}:${{ secrets.INFRA_TOKEN }}@github.com/unibo-toolkit/infra.git /tmp/infra
+          cd /tmp/infra
+          sed -i "s|newTag: .*# ${{ env.SERVICE_NAME }}|newTag: ${{ steps.new_version.outputs.version }} # ${{ env.SERVICE_NAME }}|" ${{ steps.target.outputs.kustomization }}
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "deploy: ${{ env.SERVICE_NAME }} ${{ steps.new_version.outputs.version }}"
+          git push
+
+      - name: Deploy — restart only
+        if: github.ref == 'refs/heads/main' && steps.bump.outputs.type == 'none'
+        run: |
+          git clone https://${{ secrets.INFRA_TOKEN_OWNER }}:${{ secrets.INFRA_TOKEN }}@github.com/unibo-toolkit/infra.git /tmp/infra
+          cd /tmp/infra
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          sed -i "s|restartedAt: .*|restartedAt: \"$TIMESTAMP\"|" ${{ steps.target.outputs.deployment }}
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "restart: ${{ env.SERVICE_NAME }}"
+          git push
