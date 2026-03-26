@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -82,10 +83,7 @@ func parseApplePrivateKey(keyPEM string) (*ecdsa.PrivateKey, error) {
 }
 
 func normalizeKey(key string) string {
-	if len(key) > 0 && key[0] != '-' {
-		return key
-	}
-	return key
+	return strings.ReplaceAll(key, `\n`, "\n")
 }
 
 func (p *AppleProvider) generateClientSecret() (string, error) {
