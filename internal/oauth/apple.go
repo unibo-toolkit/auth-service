@@ -83,7 +83,10 @@ func parseApplePrivateKey(keyPEM string) (*ecdsa.PrivateKey, error) {
 }
 
 func normalizeKey(key string) string {
-	return strings.ReplaceAll(key, `\n`, "\n")
+	key = strings.TrimSpace(key)
+	key = strings.ReplaceAll(key, `\n`, "\n")
+	key = strings.ReplaceAll(key, "\r", "")
+	return key
 }
 
 func (p *AppleProvider) generateClientSecret() (string, error) {
