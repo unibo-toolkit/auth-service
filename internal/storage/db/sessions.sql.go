@@ -193,6 +193,17 @@ func (q *Queries) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) err
 	return err
 }
 
+const revokeAllUserTokensForDeletion = `-- name: RevokeAllUserTokensForDeletion :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW(), revoked_reason = 'account_deleted'
+WHERE user_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeAllUserTokensForDeletion(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAllUserTokensForDeletion, userID)
+	return err
+}
+
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET revoked_at = NOW(), revoked_reason = $2

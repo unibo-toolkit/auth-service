@@ -89,6 +89,8 @@ func (s *Server) RegisterRoutes() {
 		users.Use(s.requireAuth)
 		{
 			users.GET("/", s.handleGetProfile)
+			users.PATCH("/", s.handleUpdateProfile)
+			users.DELETE("/", s.handleDeleteAccount)
 			users.GET("/sessions", s.handleGetSessions)
 			users.DELETE("/sessions/:sessionID", s.handleRevokeSession)
 			users.GET("/login-history", s.handleGetLoginHistory)
@@ -391,6 +393,63 @@ func (s *Server) handleGetProfile(c *gin.Context) {
 		"updated_at":   user.UpdatedAt,
 		"last_login":   user.LastLogin,
 		"roles":        roles,
+	})
+}
+
+func (s *Server) handleUpdateProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	var req struct {
+		DisplayName string `json:"display_name" binding:"required"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	trimmed := strings.TrimSpace(req.DisplayName)
+	if trimmed == "" || len(trimmed) > 255 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_name must be 1-255 characters"})
+		return
+	}
+
+	user, err := s.service.storage.UpdateUser(c.Request.Context(), db.UpdateUserParams{
+		ID:          userID.(uuid.UUID),
+		DisplayName: pgtype.Text{String: trimmed, Valid: true},
+	})
+	if err != nil {
+		s.log.Error("failed to update user", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
+		return
+	}
+
+	roles, _ := c.Get("roles")
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":           user.ID,
+		"email":        user.Email,
+		"display_name": user.DisplayName,
+		"avatar_url":   user.AvatarUrl,
+		"created_at":   user.CreatedAt,
+		"updated_at":   user.UpdatedAt,
+		"last_login":   user.LastLogin,
+		"roles":        roles,
+	})
+}
+
+func (s *Server) handleDeleteAccount(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	if err := s.service.storage.DeleteAccount(c.Request.Context(), userID.(uuid.UUID)); err != nil {
+		s.log.Error("failed to delete account", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete account"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Account deleted successfully",
 	})
 }
 

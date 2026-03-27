@@ -27,6 +27,7 @@ type Querier interface {
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
 	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
+	RevokeAllUserTokensForDeletion(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
 	RevokeTokenFamily(ctx context.Context, familyID uuid.UUID) error
 	UpdateLastLogin(ctx context.Context, id uuid.UUID) error
