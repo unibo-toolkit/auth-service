@@ -40,6 +40,11 @@ UPDATE refresh_tokens
 SET revoked_at = NOW(), revoked_reason = 'logout_all'
 WHERE user_id = $1 AND revoked_at IS NULL;
 
+-- name: RevokeAllUserTokensForDeletion :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW(), revoked_reason = 'account_deleted'
+WHERE user_id = $1 AND revoked_at IS NULL;
+
 -- name: UpdateTokenUsedAt :exec
 UPDATE refresh_tokens
 SET used_at = NOW()

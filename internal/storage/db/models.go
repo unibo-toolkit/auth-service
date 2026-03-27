@@ -64,13 +64,6 @@ type CalendarCourse struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
-type CalendarEvent struct {
-	ID               uuid.UUID `json:"id"`
-	CalendarID       uuid.UUID `json:"calendar_id"`
-	TimetableEventID uuid.UUID `json:"timetable_event_id"`
-	Sequence         int32     `json:"sequence"`
-}
-
 type CalendarLink struct {
 	ID             uuid.UUID          `json:"id"`
 	Slug           string             `json:"slug"`
@@ -83,6 +76,7 @@ type CalendarLink struct {
 	TtlExpiresAt   pgtype.Timestamptz `json:"ttl_expires_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	Lang           string             `json:"lang"`
 }
 
 type CalendarSubject struct {

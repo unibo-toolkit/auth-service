@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/unibo-toolkit/auth-service/internal/config"
 	"github.com/unibo-toolkit/auth-service/internal/storage/db"
@@ -14,6 +15,7 @@ import (
 
 type Storage struct {
 	Shutdown func()
+	pool     *pgxpool.Pool
 	*db.Queries
 }
 
@@ -52,5 +54,25 @@ func New(log *slog.Logger) *Storage {
 
 	queries := db.New(conn)
 
-	return &Storage{conn.Close, queries}
+	return &Storage{conn.Close, conn, queries}
+}
+
+func (s *Storage) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := s.Queries.WithTx(tx)
+
+	if err := qtx.RevokeAllUserTokensForDeletion(ctx, userID); err != nil {
+		return err
+	}
+
+	if err := qtx.DeleteUser(ctx, userID); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
