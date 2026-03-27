@@ -2,7 +2,9 @@ package auth
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -342,7 +344,7 @@ func (s *Server) requireAuth(c *gin.Context) {
 		userID = parsedID
 		email = c.GetHeader("X-Email")
 		if rolesStr != "" {
-			roles = strings.Split(rolesStr, ",")
+			roles = parseRoles(rolesStr)
 		}
 	} else {
 		token := c.GetHeader("Authorization")
@@ -508,6 +510,18 @@ func (s *Server) getIP(c *gin.Context) string {
 
 func (s *Server) ShutdownService() {
 	s.log.Info("Shutting down service")
+}
+
+func parseRoles(header string) []string {
+	decoded, err := base64.StdEncoding.DecodeString(header)
+	if err != nil {
+		return []string{header}
+	}
+	var roles []string
+	if err := json.Unmarshal(decoded, &roles); err != nil {
+		return []string{string(decoded)}
+	}
+	return roles
 }
 
 func hashRefreshToken(token string) string {
