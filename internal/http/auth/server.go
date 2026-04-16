@@ -41,7 +41,11 @@ func New(log *slog.Logger, st *storage.Storage) *Server {
 		gin.SetMode(gin.DebugMode)
 	}
 
-	engine := gin.Default()
+	engine := gin.New()
+	engine.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/api/v1/auth/health"},
+	}))
+	engine.Use(gin.Recovery())
 	err := engine.SetTrustedProxies(nil)
 	if err != nil {
 		log.Error("Failed to set trusted proxies", "error", err)
