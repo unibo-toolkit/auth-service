@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -92,6 +94,9 @@ func (s *Service) HandleOAuthCallback(
 	var user *db.User
 	existingUser, err := s.storage.GetUserByEmail(ctx, userInfo.Email)
 	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("failed to get user by email: %w", err)
+		}
 		user, err = s.createUser(ctx, userInfo)
 		if err != nil {
 			log.Error("Failed to create user", "error", err)
