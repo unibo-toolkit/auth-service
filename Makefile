@@ -74,7 +74,7 @@ sqlc:
 
 .PHONY: build
 build:
-	CGO_ENABLED=0 go build -o bin/auth-service ./cmd/server/main.go
+	CGO_ENABLED=0 go build -o bin/auth-service ./cmd/main/main.go
 
 .PHONY: clean
 clean:
