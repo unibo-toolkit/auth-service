@@ -39,6 +39,8 @@ func (p *GoogleProvider) GetAuthURL(state string) string {
 	return p.config.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
+// ExchangeCode trades the authorization code for a token and loads the profile
+// from Google's userinfo endpoint.
 func (p *GoogleProvider) ExchangeCode(code string, additionalData string) (UserInfo, error) {
 	ctx := context.Background()
 

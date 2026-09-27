@@ -28,6 +28,8 @@ func NewApp(log *slog.Logger, st *storage.Storage) *App {
 	}
 }
 
+// Run starts the listener in the background. Any failure other than
+// http.ErrServerClosed panics.
 func (a *App) Run(addr string) {
 	const op = "app.http.Run"
 	log := a.log.With("op", op)
@@ -48,6 +50,8 @@ func (a *App) Run(addr string) {
 	log.Info("HTTP server is running", slog.String("addr", addr))
 }
 
+// Shutdown drains the HTTP server, waiting up to five seconds for in-flight
+// requests.
 func (a *App) Shutdown(ctx context.Context) error {
 	const op = "app.http.Shutdown"
 	log := a.log.With("op", op)

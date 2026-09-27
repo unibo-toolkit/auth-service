@@ -13,6 +13,8 @@ import (
 	"github.com/unibo-toolkit/auth-service/internal/config"
 )
 
+// Manager issues and validates the service's RS256 tokens and publishes the
+// public half of the key pair as JWKS.
 type Manager struct {
 	log        *slog.Logger
 	PublicKey  *rsa.PublicKey
@@ -24,6 +26,8 @@ type Manager struct {
 	kid        string
 }
 
+// AccessTokenClaims is the access token payload. uid, email and roles are the
+// claims Istio maps into the X-User-Id, X-Email and X-Roles headers.
 type AccessTokenClaims struct {
 	jwt.RegisteredClaims
 	UserID uuid.UUID `json:"uid"`
@@ -31,12 +35,17 @@ type AccessTokenClaims struct {
 	Roles  []string  `json:"roles"`
 }
 
+// RefreshTokenClaims is the refresh token payload. fid binds the token to its
+// family, so a replay can revoke every sibling token at once.
 type RefreshTokenClaims struct {
 	jwt.RegisteredClaims
 	UserID   uuid.UUID `json:"uid"`
 	FamilyID uuid.UUID `json:"fid"`
 }
 
+// MustNewJwtManager builds a Manager from the JWT config and panics if the keys
+// are unusable: both PEM blocks must parse and the public key must match the
+// private one.
 func MustNewJwtManager(log *slog.Logger, cfg *config.Config) *Manager {
 	log = log.With("op", "jwt.MustNewJwtManager")
 	log.Info("Initializing JWT Manager")
@@ -73,6 +82,8 @@ func MustNewJwtManager(log *slog.Logger, cfg *config.Config) *Manager {
 	}
 }
 
+// GenerateAccessToken signs a short-lived token carrying the user's identity and
+// roles. The kid header names the key published through JWKS.
 func (m *Manager) GenerateAccessToken(userID uuid.UUID, email string, roles []string) (string, error) {
 	now := time.Now()
 	log := m.log.With("op", "jwt.GenerateAccessToken", "user_id", userID)
@@ -106,6 +117,8 @@ func (m *Manager) GenerateAccessToken(userID uuid.UUID, email string, roles []st
 	return tokenString, nil
 }
 
+// GenerateRefreshToken signs a long-lived token bound to familyID. Only its hash
+// reaches the database; see HashRefreshToken.
 func (m *Manager) GenerateRefreshToken(userID, familyID uuid.UUID) (string, error) {
 	now := time.Now()
 	log := m.log.With("op", "jwt.GenerateRefreshToken", "user_id", userID)
@@ -158,6 +171,9 @@ func (m *Manager) validateToken(tokenString string, claims jwt.Claims, log *slog
 	return nil
 }
 
+// ValidateAccessToken parses and verifies an access token. It checks the RS256
+// signature and the standard time claims only: issuer, audience and token kind
+// are not enforced here.
 func (m *Manager) ValidateAccessToken(tokenString string) (*AccessTokenClaims, error) {
 	log := m.log.With("op", "jwt.ValidateAccessToken")
 	claims := &AccessTokenClaims{}
@@ -170,6 +186,8 @@ func (m *Manager) ValidateAccessToken(tokenString string) (*AccessTokenClaims, e
 	return claims, nil
 }
 
+// ValidateRefreshToken parses and verifies a refresh token, under the same
+// limits as ValidateAccessToken.
 func (m *Manager) ValidateRefreshToken(tokenString string) (*RefreshTokenClaims, error) {
 	log := m.log.With("op", "jwt.ValidateRefreshToken")
 	claims := &RefreshTokenClaims{}
@@ -182,6 +200,8 @@ func (m *Manager) ValidateRefreshToken(tokenString string) (*RefreshTokenClaims,
 	return claims, nil
 }
 
+// HashRefreshToken derives the value stored in refresh_tokens.token_hash:
+// base64url(SHA-256(token)). Raw refresh tokens are never persisted.
 func HashRefreshToken(refreshTokenString string) string {
 	hash := sha256.Sum256([]byte(refreshTokenString))
 	return base64.RawURLEncoding.EncodeToString(hash[:])

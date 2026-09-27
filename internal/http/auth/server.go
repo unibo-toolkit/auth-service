@@ -22,6 +22,8 @@ import (
 	"github.com/unibo-toolkit/auth-service/internal/storage/db"
 )
 
+// Server owns the gin engine, the HTTP server and the in-process OAuth state
+// store.
 type Server struct {
 	log     *slog.Logger
 	service *Service
@@ -34,6 +36,8 @@ type Server struct {
 
 var cfg = config.MustLoad()
 
+// New builds the HTTP server from config: gin mode, trusted proxies, the auth
+// service and the background sweeper for expired OAuth states.
 func New(log *slog.Logger, st *storage.Storage) *Server {
 	if cfg.Http.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
@@ -72,6 +76,9 @@ func New(log *slog.Logger, st *storage.Storage) *Server {
 	return srv
 }
 
+// RegisterRoutes mounts the API under /api/v1. Everything below /auth is public
+// because Istio lets it through unauthenticated; /users/me sits behind
+// requireAuth.
 func (s *Server) RegisterRoutes() {
 	v1 := s.Group("/api/v1")
 	{
@@ -115,6 +122,8 @@ func (s *Server) jwksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, jwks)
 }
 
+// handleOAuthStart mints a single-use state and redirects to the provider's
+// consent screen.
 func (s *Server) handleOAuthStart(c *gin.Context) {
 	provider := c.Param("provider")
 
@@ -135,6 +144,8 @@ func (s *Server) handleOAuthStart(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, authURL)
 }
 
+// handleOAuthCallback serves the provider redirect - GET for Google, POST
+// form_post for Apple - and answers with the token pair as JSON.
 func (s *Server) handleOAuthCallback(c *gin.Context) {
 	provider := c.Param("provider")
 
@@ -185,6 +196,9 @@ func (s *Server) handleOAuthCallback(c *gin.Context) {
 	})
 }
 
+// handleExchangeCode is the callback's counterpart for native and SPA clients
+// that receive the authorization code themselves. state is verified only when
+// the client sends one.
 func (s *Server) handleExchangeCode(c *gin.Context) {
 	var req struct {
 		Provider   string `json:"provider" binding:"required"`
@@ -236,6 +250,8 @@ func (s *Server) handleExchangeCode(c *gin.Context) {
 	})
 }
 
+// handleRefresh rotates the token pair. A replayed token revokes its whole
+// family and answers 401.
 func (s *Server) handleRefresh(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -293,15 +309,20 @@ func (s *Server) handleLogout(c *gin.Context) {
 	tokenHash := hashRefreshToken(req.RefreshToken)
 	storedToken, err := s.service.storage.GetRefreshTokenByHash(c.Request.Context(), tokenHash)
 	if err == nil {
-		s.service.storage.RevokeRefreshToken(c.Request.Context(), db.RevokeRefreshTokenParams{
+		err := s.service.storage.RevokeRefreshToken(c.Request.Context(), db.RevokeRefreshTokenParams{
 			ID:            storedToken.ID,
 			RevokedReason: pgtype.Text{String: "user_logout", Valid: true},
 		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke refresh token"})
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// handleLogoutAll revokes every active refresh token of the user the supplied
+// refresh token belongs to.
 func (s *Server) handleLogoutAll(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -327,6 +348,13 @@ func (s *Server) handleLogoutAll(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// requireAuth resolves the caller and publishes user_id, email and roles into the
+// gin context.
+//
+// In prod the identity is taken from the headers Istio derives from the verified
+// JWT (X-User-Id, X-Email, X-Roles) and is not re-validated here, so the pod must
+// never be reachable around the gateway. In every other environment the
+// Authorization: Bearer token is validated locally.
 func (s *Server) requireAuth(c *gin.Context) {
 	var userID uuid.UUID
 	var email string
@@ -470,6 +498,8 @@ func (s *Server) handleGetSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, sessions)
 }
 
+// handleRevokeSession revokes a whole token family. The path parameter is the
+// family id reported by GET /users/me/sessions, not a refresh token id.
 func (s *Server) handleRevokeSession(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	familyIDStr := c.Param("sessionID")
@@ -521,6 +551,8 @@ func (s *Server) handleGetLoginHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, history)
 }
 
+// generateAndStoreState mints a single-use OAuth state valid for ten minutes.
+// The store lives in the process, so the callback must reach the same replica.
 func (s *Server) generateAndStoreState() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -575,6 +607,8 @@ func (s *Server) ShutdownService() {
 	s.log.Info("Shutting down service")
 }
 
+// parseRoles decodes the X-Roles header Istio emits for the roles claim: a
+// base64-encoded JSON array, falling back to the raw header value.
 func parseRoles(header string) []string {
 	decoded, err := base64.StdEncoding.DecodeString(header)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 	"github.com/unibo-toolkit/auth-service/internal/storage"
 )
 
+// App aggregates the service's sub-applications. Each one owns its transport and
+// is started and stopped through App.
 type App struct {
 	HttpApp *httpapp.App
 }
@@ -21,6 +23,7 @@ func New(log *slog.Logger, st *storage.Storage) *App {
 	}
 }
 
+// Shutdown stops every sub-application within a ten-second budget.
 func (a *App) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

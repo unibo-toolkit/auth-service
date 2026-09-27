@@ -14,6 +14,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// AppleProvider implements Provider for Sign in with Apple. Apple takes no
+// static client secret: the provider mints a signed one per exchange.
 type AppleProvider struct {
 	config     *oauth2.Config
 	teamID     string
@@ -89,6 +91,8 @@ func normalizeKey(key string) string {
 	return key
 }
 
+// generateClientSecret mints the ES256 JWT Apple accepts as client_secret,
+// signed with the .p8 key and valid for 180 days, Apple's maximum.
 func (p *AppleProvider) generateClientSecret() (string, error) {
 	now := time.Now()
 	claims := appleClaims{
@@ -111,6 +115,10 @@ func (p *AppleProvider) GetAuthURL(state string) string {
 	return p.config.AuthCodeURL(state, oauth2.SetAuthURLParam("response_mode", "form_post"))
 }
 
+// ExchangeCode trades the authorization code for an id_token and reads the
+// identity from its claims. Apple returns the user's name only in additionalData
+// and only on the first authorization; later logins fall back to the local part
+// of the email.
 func (p *AppleProvider) ExchangeCode(code string, additionalData string) (UserInfo, error) {
 	ctx := context.Background()
 

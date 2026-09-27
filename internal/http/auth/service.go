@@ -19,6 +19,8 @@ import (
 	"github.com/unibo-toolkit/auth-service/internal/storage/db"
 )
 
+// Service holds the auth business logic: provider exchange, user provisioning
+// and the refresh-token family lifecycle.
 type Service struct {
 	log             *slog.Logger
 	storage         *storage.Storage
@@ -33,6 +35,8 @@ type AuthTokens struct {
 	RefreshToken string
 }
 
+// NewHttpService wires the JWT manager and registers every configured OAuth
+// provider. A provider without a client id stays disabled.
 func NewHttpService(log *slog.Logger, st *storage.Storage) *Service {
 	cfg := config.MustLoad()
 
@@ -74,6 +78,9 @@ func NewHttpService(log *slog.Logger, st *storage.Storage) *Service {
 	}
 }
 
+// HandleOAuthCallback completes a login: it exchanges the code with the provider,
+// finds or provisions the user, refreshes last_login, records the attempt in
+// login_history and opens a new refresh-token family.
 func (s *Service) HandleOAuthCallback(
 	ctx context.Context,
 	provider string,
@@ -143,6 +150,7 @@ func (s *Service) HandleOAuthCallback(
 	return tokens, nil
 }
 
+// createUser inserts the user and grants the default "user" role.
 func (s *Service) createUser(ctx context.Context, userInfo oauth.UserInfo) (*db.User, error) {
 	log := s.log.With("op", "service.createUser", "email", userInfo.Email)
 
@@ -180,6 +188,8 @@ func (s *Service) createUser(ctx context.Context, userInfo oauth.UserInfo) (*db.
 	return &user, nil
 }
 
+// ensureOAuthProvider links the provider identity to the user unless that
+// (provider, provider_id) pair is already linked.
 func (s *Service) ensureOAuthProvider(ctx context.Context, userID uuid.UUID, provider, providerUserID, email string) error {
 	_, err := s.storage.GetOAuthProvider(ctx, db.GetOAuthProviderParams{
 		Provider:   provider,
@@ -198,6 +208,9 @@ func (s *Service) ensureOAuthProvider(ctx context.Context, userID uuid.UUID, pro
 	return err
 }
 
+// createTokens issues an access/refresh pair and opens a new family. The refresh
+// token is stored as a hash alongside the session's IP, user agent and device
+// name, which is what GET /users/me/sessions reports.
 func (s *Service) createTokens(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -251,6 +264,10 @@ func (s *Service) createTokens(
 	}, nil
 }
 
+// RefreshTokens rotates a refresh token inside its family. A token that is
+// already used or revoked counts as a replay: the whole family is revoked and
+// ErrTokenReused is returned. The replacement keeps the family id and points at
+// its predecessor through parent_id.
 func (s *Service) RefreshTokens(
 	ctx context.Context,
 	refreshToken string,

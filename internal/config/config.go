@@ -4,6 +4,8 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+// Config is the whole service configuration. Every field comes from an
+// environment variable; there is no config file.
 type Config struct {
 	Http  HttpConfig
 	DB    DBConfig
@@ -17,6 +19,8 @@ type HttpConfig struct {
 	Environment string `env:"ENVIRONMENT" env-default:"dev"`
 }
 
+// DBConfig holds the pgx pool settings. MaxConnLifetime and MaxConnIdleTime are
+// time.Duration values, so they are expressed in nanoseconds.
 type DBConfig struct {
 	Host            string `env:"DB_HOST" env-default:"localhost"`
 	Port            string `env:"DB_PORT" env-default:"5432"`
@@ -50,6 +54,9 @@ type OAuthConfig struct {
 	AppleRedirectURL   string `env:"APPLE_REDIRECT_URL"`
 }
 
+// MustLoad reads the configuration from the environment and panics when a
+// required variable is missing. It is called during package initialization, so a
+// missing JWT key pair stops the process before any request is served.
 func MustLoad() *Config {
 	var cfg Config
 

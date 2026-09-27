@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// Manager is the registry of enabled providers, keyed by the name used in the
+// /auth/:provider route.
 type Manager struct {
 	providers map[string]Provider
 }
@@ -14,6 +16,8 @@ func NewManager() *Manager {
 	}
 }
 
+// RegisterProvider adds a provider under name. Registration belongs to startup:
+// the map is read without synchronization afterwards.
 func (m *Manager) RegisterProvider(name string, provider Provider) {
 	m.providers[name] = provider
 }

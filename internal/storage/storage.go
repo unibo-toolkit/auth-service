@@ -13,12 +13,16 @@ import (
 	"github.com/unibo-toolkit/auth-service/internal/storage/db"
 )
 
+// Storage is the database layer: a pgx pool plus the sqlc-generated queries,
+// embedded so every generated method is reachable on Storage itself.
 type Storage struct {
 	Shutdown func()
 	pool     *pgxpool.Pool
 	*db.Queries
 }
 
+// Config builds the pool configuration from the DB_* variables. The connection
+// string is assembled with sslmode=disable.
 func Config() *pgxpool.Config {
 	cfg := config.MustLoad().DB
 	databaseURL := fmt.Sprintf(
@@ -39,6 +43,8 @@ func Config() *pgxpool.Config {
 	return dbConfig
 }
 
+// New opens the pool and fails fast: it panics when the pool cannot be created
+// or the database does not answer a ping.
 func New(log *slog.Logger) *Storage {
 	conn, err := pgxpool.NewWithConfig(context.Background(), Config())
 	if err != nil {
@@ -57,6 +63,9 @@ func New(log *slog.Logger) *Storage {
 	return &Storage{conn.Close, conn, queries}
 }
 
+// DeleteAccount removes the user in a single transaction. Foreign keys cascade
+// over the oauth links, refresh tokens and login history, while
+// calendar_links.owner_id is set to NULL so shared calendars outlive the account.
 func (s *Storage) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

@@ -35,6 +35,9 @@ func ParsePublicKey(keyPEM string) (*rsa.PublicKey, error) {
 	return publicKey, nil
 }
 
+// GenerateJWKS renders the public key as a single-key JWKS document (RFC 7517)
+// for Istio's RequestAuthentication. Key rotation would serve both keys here
+// during the grace period.
 func GenerateJWKS(publicKey *rsa.PublicKey, keyID string) map[string]interface{} {
 	n := publicKey.N.Bytes()
 	e := big.NewInt(int64(publicKey.E)).Bytes()
