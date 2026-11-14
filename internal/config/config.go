@@ -8,10 +8,12 @@ import (
 // Config is the whole service configuration. Every field comes from an
 // environment variable; there is no config file.
 type Config struct {
-	Http  HttpConfig
-	DB    DBConfig
-	JWT   JWTConfig
-	OAuth OAuthConfig
+	Http    HttpConfig
+	DB      DBConfig
+	JWT     JWTConfig
+	OIDC    OIDCConfig
+	Session SessionConfig
+	OAuth   OAuthConfig
 }
 
 // OIDCConfig holds the OpenID Connect configuration for the service.
