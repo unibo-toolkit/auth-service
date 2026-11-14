@@ -21,8 +21,8 @@ type Manager struct {
 	privateKey *rsa.PrivateKey
 	issuer     string
 	audience   string
-	accessTTL  int64
-	refreshTTL int64
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 	kid        string
 }
 
@@ -94,7 +94,7 @@ func (m *Manager) GenerateAccessToken(userID uuid.UUID, email string, roles []st
 			Issuer:    m.issuer,
 			Subject:   userID.String(),
 			Audience:  jwt.ClaimStrings{m.audience},
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(m.accessTTL) * time.Second)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ID:        uuid.New().String(),
@@ -128,7 +128,7 @@ func (m *Manager) GenerateRefreshToken(userID, familyID uuid.UUID) (string, erro
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID.String(),
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(m.refreshTTL) * time.Second)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.refreshTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ID:        uuid.New().String(),
 		},

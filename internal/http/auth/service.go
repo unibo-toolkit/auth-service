@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/unibo-toolkit/auth-service/internal/config"
+	"github.com/unibo-toolkit/auth-service/internal/federation"
 	"github.com/unibo-toolkit/auth-service/internal/jwt"
-	"github.com/unibo-toolkit/auth-service/internal/oauth"
 	"github.com/unibo-toolkit/auth-service/internal/storage"
 	"github.com/unibo-toolkit/auth-service/internal/storage/db"
 )
@@ -73,8 +73,8 @@ func NewHttpService(log *slog.Logger, st *storage.Storage) *Service {
 		storage:         st,
 		jwtManager:      jwtManager,
 		oauthManager:    oauthMgr,
-		refreshTokenTTL: time.Duration(cfg.JWT.RefreshTokenTTL) * time.Second,
-		accessTokenTTL:  time.Duration(cfg.JWT.AccessTokenTTL) * time.Second,
+		refreshTokenTTL: cfg.JWT.RefreshTokenTTL,
+		accessTokenTTL:  cfg.JWT.AccessTokenTTL,
 	}
 }
 

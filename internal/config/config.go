@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/ilyakaznacheev/cleanenv"
+	"time"
 )
 
 // Config is the whole service configuration. Every field comes from an
@@ -13,6 +14,26 @@ type Config struct {
 	OAuth OAuthConfig
 }
 
+// OIDCConfig holds the OpenID Connect configuration for the service.
+// It is used to generate the discovery document and JWKS endpoint.
+type OIDCConfig struct {
+	Issuer         string        `env:"OIDC_ISSUER" env-required:"true"`
+	UIBaseURL      string        `env:"OIDC_UI_BASE_URL" env-required:"true"`
+	SigningKeys    []string      `env:"OIDC_SIGNING_KEYS" env-required:"true" env-separator:";;"`
+	APIAudience    string        `env:"OIDC_API_AUDIENCE" env-default:"uniplanner-api"`
+	AuthRequestTTL time.Duration `env:"OIDC_AUTH_REQUEST_TTL" env-default:"10m"`
+	AuthCodeTTL    time.Duration `env:"OIDC_AUTH_CODE_TTL" env-default:"60s"`
+}
+
+// SessionConfig holds the session cookie name and TTLs. The absolute TTL is the
+// maximum lifetime of a session, while the idle TTL is the maximum time between
+// two requests before the session expires.
+type SessionConfig struct {
+	CookieName  string        `env:"SESSION_COOKIE_NAME" env-default:"__Host-uniplanner_sid"`
+	AbsoluteTTL time.Duration `env:"SESSION_ABSOLUTE_TTL" env-default:"720h"`
+	IdleTTL     time.Duration `env:"SESSION_IDLE_TTL" env-default:"336h"`
+}
+
 type HttpConfig struct {
 	Port        uint16 `env:"HTTP_PORT" env-default:"8081"`
 	IpHeader    string `env:"HTTP_IP_HEADER"`
@@ -22,25 +43,25 @@ type HttpConfig struct {
 // DBConfig holds the pgx pool settings. MaxConnLifetime and MaxConnIdleTime are
 // time.Duration values, so they are expressed in nanoseconds.
 type DBConfig struct {
-	Host            string `env:"DB_HOST" env-default:"localhost"`
-	Port            string `env:"DB_PORT" env-default:"5432"`
-	User            string `env:"DB_USER" env-default:"unibo_user"`
-	Pass            string `env:"DB_PASS" env-default:"unibo_pass"`
-	Name            string `env:"DB_NAME" env-default:"unibo_toolkit"`
-	MaxConns        int32  `env:"DB_MAX_CONNS" env-default:"10"`
-	MinConns        int32  `env:"DB_MIN_CONNS" env-default:"1"`
-	MaxConnLifetime int64  `env:"DB_MAX_CONN_LIFETIME" env-default:"3600000000000"`
-	MaxConnIdleTime int64  `env:"DB_MAX_CONN_IDLE_TIME" env-default:"1800000000000"`
+	Host            string        `env:"DB_HOST" env-default:"localhost"`
+	Port            string        `env:"DB_PORT" env-default:"5432"`
+	User            string        `env:"DB_USER" env-default:"unibo_user"`
+	Pass            string        `env:"DB_PASS" env-default:"unibo_pass"`
+	Name            string        `env:"DB_NAME" env-default:"unibo_toolkit"`
+	MaxConns        int32         `env:"DB_MAX_CONNS" env-default:"10"`
+	MinConns        int32         `env:"DB_MIN_CONNS" env-default:"1"`
+	MaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" env-default:"3600000000000ns"`
+	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" env-default:"1800000000000ns"`
 }
 
 type JWTConfig struct {
-	PrivateKey      string `env:"JWT_PRIVATE_KEY" env-required:"true"`
-	PublicKey       string `env:"JWT_PUBLIC_KEY" env-required:"true"`
-	AccessTokenTTL  int64  `env:"ACCESS_TOKEN_TTL" env-default:"900"`
-	RefreshTokenTTL int64  `env:"REFRESH_TOKEN_TTL" env-default:"2592000"`
-	Issuer          string `env:"JWT_ISSUER" env-default:"uniplanner.it"`
-	Audience        string `env:"JWT_AUDIENCE" env-default:"uniplanner.it"`
-	Kid             string `env:"JWT_KID" env-default:"key-2026-01"`
+	PrivateKey      string        `env:"JWT_PRIVATE_KEY" env-required:"true"`
+	PublicKey       string        `env:"JWT_PUBLIC_KEY" env-required:"true"`
+	AccessTokenTTL  time.Duration `env:"ACCESS_TOKEN_TTL" env-default:"15m"`
+	RefreshTokenTTL time.Duration `env:"REFRESH_TOKEN_TTL" env-default:"720h"`
+	Issuer          string        `env:"JWT_ISSUER" env-default:"uniplanner.it"`
+	Audience        string        `env:"JWT_AUDIENCE" env-default:"uniplanner.it"`
+	Kid             string        `env:"JWT_KID" env-default:"key-2026-01"`
 }
 
 type OAuthConfig struct {
