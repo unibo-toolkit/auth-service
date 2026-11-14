@@ -35,7 +35,7 @@ per app.
 
 ## Adding a provider
 
-1. Add `internal/oauth/<name>.go` with the struct, constructor and the two
+1. Add `` with the struct, constructor and the two
    interface methods.
 2. Add its credentials to `OAuthConfig` in `internal/config`, to `.env.example`,
    and register it in `NewHttpService` behind an "is it configured" check.
