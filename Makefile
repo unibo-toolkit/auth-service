@@ -9,15 +9,15 @@ setup:
 	go mod download
 	@echo "\n==> Setting up .env..."
 	@test -f .env || cp .env.example .env
-	@echo "\n==> Generating RSA keys..."
+	@echo "\n==> Generating the RSA signing key..."
 	@mkdir -p keys
 	@if [ ! -f keys/private.pem ]; then \
 		openssl genrsa -out keys/private.pem 2048; \
-		openssl rsa -in keys/private.pem -pubout -out keys/public.pem; \
-		echo "RSA keys generated"; \
+		echo "Signing key generated in keys/private.pem"; \
 	else \
-		echo "RSA keys already exist"; \
+		echo "Signing key already exists"; \
 	fi
+	@echo "Put it into JWT_SIGNING_KEYS: make jwt-key"
 	@echo "\n==> Checking databases repo..."
 	@if [ ! -d "external/databases/migrations" ]; then \
 		git submodule update --init --recursive; \
@@ -25,7 +25,7 @@ setup:
 		echo "databases repo already exists"; \
 	fi
 	@echo "\n[OK] Setup complete! Next steps:"
-	@echo "  1. Edit .env with your OAuth credentials"
+	@echo "  1. Edit .env: JWT_SIGNING_KEYS (make jwt-key) and OAuth credentials"
 	@echo "  2. Run: make dev-up"
 	@echo "  3. Run: make migrate-up"
 	@echo "  4. Run: make run"
@@ -70,13 +70,29 @@ migrate-version:
 sqlc:
 	@echo "==> Generating models with sqlc..."
 	cd internal/storage && sqlc generate
-	@echo "[OK] Models generated in internal/repository/db/"
+	@echo "[OK] Models generated in internal/storage/db/"
 
 .PHONY: update-migrations
 update-migrations:
 	@echo "==> Updating migrations from databases repo..."
 	git submodule update --remote --merge
 	@echo "[OK] Migrations updated!"
+
+.PHONY: jwt-key
+jwt-key:
+	@test -f keys/private.pem || { echo "[ERROR] keys/private.pem not found, run 'make setup'"; exit 1; }
+	@printf 'JWT_SIGNING_KEYS="'
+	@awk 'BEGIN {ORS="\\n"} {print}' keys/private.pem
+	@printf '"\n'
+
+.PHONY: run
+run:
+	go run ./cmd/main/main.go
+
+.PHONY: test
+test:
+	go vet ./...
+	go test ./...
 
 .PHONY: build
 build:

@@ -88,38 +88,31 @@ func (s *Server) healthHandler(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"st
 
 func (s *Server) jwksHandler(c *gin.Context) { c.JSON(http.StatusOK, s.ring.JWKS()) }
 
+// requireAuth resolves the caller from the Bearer access token and publishes
+// user_id and roles into the gin context. The token is validated here in every
+// environment: this service holds the signing keys, so it never has to trust
+// identity headers set by the gateway.
 func (s *Server) requireAuth(c *gin.Context) {
-	var userID uuid.UUID
-	var roles []string
+	authorization := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-	if s.cfg.Http.Environment == "prod" {
-		parsed, err := uuid.Parse(c.GetHeader("X-User-Id"))
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-		userID = parsed
-	} else {
-		authorization := c.GetHeader("Authorization")
-		if !strings.HasPrefix(authorization, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-		claims, err := s.verifier.ParseAccess(strings.TrimPrefix(authorization, "Bearer "), s.cfg.OIDC.APIAudience)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-			return
-		}
-		userID, err = uuid.Parse(claims.Subject)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid subject"})
-			return
-		}
-		roles = claims.Roles
+	claims, err := s.verifier.ParseAccess(strings.TrimPrefix(authorization, "Bearer "), s.cfg.OIDC.APIAudience)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid subject"})
+		return
 	}
 
 	c.Set("user_id", userID)
-	c.Set("roles", roles)
+	c.Set("roles", claims.Roles)
 	c.Next()
 }
 

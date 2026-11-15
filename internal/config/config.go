@@ -42,7 +42,7 @@ type HttpConfig struct {
 }
 
 // DBConfig holds the pgx pool settings. MaxConnLifetime and MaxConnIdleTime are
-// time.Duration values, so they are expressed in nanoseconds.
+// durations and need a unit, for example 1h or 30m.
 type DBConfig struct {
 	Host            string        `env:"DB_HOST" env-default:"localhost"`
 	Port            string        `env:"DB_PORT" env-default:"5432"`
@@ -51,8 +51,8 @@ type DBConfig struct {
 	Name            string        `env:"DB_NAME" env-default:"unibo_toolkit"`
 	MaxConns        int32         `env:"DB_MAX_CONNS" env-default:"10"`
 	MinConns        int32         `env:"DB_MIN_CONNS" env-default:"1"`
-	MaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" env-default:"3600000000000ns"`
-	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" env-default:"1800000000000ns"`
+	MaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" env-default:"1h"`
+	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" env-default:"30m"`
 }
 
 type OAuthConfig struct {

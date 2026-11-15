@@ -18,7 +18,7 @@ type Querier interface {
 	ConsumeAuthorizationCode(ctx context.Context, codeHash string) (OauthAuthorizationCode, error)
 	CreateAuthRequest(ctx context.Context, arg CreateAuthRequestParams) (AuthRequest, error)
 	CreateAuthorizationCode(ctx context.Context, arg CreateAuthorizationCodeParams) (OauthAuthorizationCode, error)
-	CreateClient(ctx context.Context, arg CreateClientParams) (OauthClient, error)
+	CreateClient(ctx context.Context, arg CreateClientParams) (CreateClientRow, error)
 	CreateLoginHistory(ctx context.Context, arg CreateLoginHistoryParams) (LoginHistory, error)
 	CreateOAuthProvider(ctx context.Context, arg CreateOAuthProviderParams) (OauthProvider, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
@@ -31,7 +31,7 @@ type Querier interface {
 	GetActiveSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
 	GetAuthRequest(ctx context.Context, id uuid.UUID) (AuthRequest, error)
 	GetAuthorizationCodeByHash(ctx context.Context, codeHash string) (OauthAuthorizationCode, error)
-	GetClientByClientID(ctx context.Context, clientID string) (OauthClient, error)
+	GetClientByClientID(ctx context.Context, clientID string) (GetClientByClientIDRow, error)
 	GetLoginHistory(ctx context.Context, userID uuid.UUID) ([]LoginHistory, error)
 	GetOAuthProvider(ctx context.Context, arg GetOAuthProviderParams) (OauthProvider, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
@@ -42,7 +42,7 @@ type Querier interface {
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
 	ListActiveSSOSessions(ctx context.Context, userID uuid.UUID) ([]SsoSession, error)
-	ListClients(ctx context.Context) ([]OauthClient, error)
+	ListClients(ctx context.Context) ([]ListClientsRow, error)
 	MarkAuthRequestConsented(ctx context.Context, id uuid.UUID) (AuthRequest, error)
 	RevokeAllUserSSOSessions(ctx context.Context, arg RevokeAllUserSSOSessionsParams) error
 	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
@@ -55,7 +55,7 @@ type Querier interface {
 	SetAuthRequestFederationState(ctx context.Context, arg SetAuthRequestFederationStateParams) (AuthRequest, error)
 	SetClientSecret(ctx context.Context, arg SetClientSecretParams) error
 	TouchSSOSession(ctx context.Context, arg TouchSSOSessionParams) (SsoSession, error)
-	UpdateClient(ctx context.Context, arg UpdateClientParams) (OauthClient, error)
+	UpdateClient(ctx context.Context, arg UpdateClientParams) (UpdateClientRow, error)
 	UpdateLastLogin(ctx context.Context, id uuid.UUID) error
 	UpdateTokenUsedAt(ctx context.Context, id uuid.UUID) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)

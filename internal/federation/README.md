@@ -1,8 +1,11 @@
-# internal/oauth
+# internal/federation
 
-Provider-agnostic OAuth layer. It turns an authorization code into a `UserInfo`
-and knows nothing about users, tokens or the database — that belongs to
-`internal/http/auth`.
+Package `federation`: the OAuth *client* side. Here we are the client and Google
+and Apple are the providers; this service acting as a provider is
+`internal/oidc`.
+
+It turns an authorization code into a `UserInfo` and knows nothing about users,
+tokens or the database.
 
 ```
 Manager (registry, keyed by route name)

@@ -20,12 +20,40 @@ INSERT INTO oauth_clients (
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
     $7, $8, $9, $10, $11,
-    $12, $13, $14, $15, $16, $17
+    $12, make_interval(secs => $13::bigint),
+    make_interval(secs => $14::bigint),
+    CASE WHEN $15::bigint IS NULL THEN NULL
+         ELSE make_interval(secs => $15::bigint) END,
+    $16, $17
 )
-RETURNING id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at
+RETURNING id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at,
+          EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+          EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+          COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
 `
 
 type CreateClientParams struct {
+	ClientID               string             `json:"client_id"`
+	SecretHash             pgtype.Text        `json:"secret_hash"`
+	Name                   string             `json:"name"`
+	LogoUrl                pgtype.Text        `json:"logo_url"`
+	IsPublic               bool               `json:"is_public"`
+	IsFirstParty           bool               `json:"is_first_party"`
+	RedirectUris           []string           `json:"redirect_uris"`
+	PostLogoutRedirectUris []string           `json:"post_logout_redirect_uris"`
+	GrantTypes             []string           `json:"grant_types"`
+	Scopes                 []string           `json:"scopes"`
+	Audiences              []string           `json:"audiences"`
+	RolesClaim             string             `json:"roles_claim"`
+	AccessTtlSeconds       int64              `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64              `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          pgtype.Int8        `json:"max_age_seconds"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+}
+
+type CreateClientRow struct {
+	ID                     uuid.UUID          `json:"id"`
 	ClientID               string             `json:"client_id"`
 	SecretHash             pgtype.Text        `json:"secret_hash"`
 	Name                   string             `json:"name"`
@@ -43,9 +71,14 @@ type CreateClientParams struct {
 	MaxAge                 pgtype.Interval    `json:"max_age"`
 	OwnerID                pgtype.UUID        `json:"owner_id"`
 	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	AccessTtlSeconds       int64              `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64              `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          int64              `json:"max_age_seconds"`
 }
 
-func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (OauthClient, error) {
+func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (CreateClientRow, error) {
 	row := q.db.QueryRow(ctx, createClient,
 		arg.ClientID,
 		arg.SecretHash,
@@ -59,13 +92,13 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Oau
 		arg.Scopes,
 		arg.Audiences,
 		arg.RolesClaim,
-		arg.AccessTtl,
-		arg.RefreshTtl,
-		arg.MaxAge,
+		arg.AccessTtlSeconds,
+		arg.RefreshTtlSeconds,
+		arg.MaxAgeSeconds,
 		arg.OwnerID,
 		arg.DisabledAt,
 	)
-	var i OauthClient
+	var i CreateClientRow
 	err := row.Scan(
 		&i.ID,
 		&i.ClientID,
@@ -87,6 +120,9 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Oau
 		&i.DisabledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AccessTtlSeconds,
+		&i.RefreshTtlSeconds,
+		&i.MaxAgeSeconds,
 	)
 	return i, err
 }
@@ -104,13 +140,43 @@ func (q *Queries) DisableClient(ctx context.Context, id uuid.UUID) error {
 }
 
 const getClientByClientID = `-- name: GetClientByClientID :one
-SELECT id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at FROM oauth_clients
+SELECT id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at,
+       EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+       EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+       COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
+FROM oauth_clients
 WHERE client_id = $1
 `
 
-func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (OauthClient, error) {
+type GetClientByClientIDRow struct {
+	ID                     uuid.UUID          `json:"id"`
+	ClientID               string             `json:"client_id"`
+	SecretHash             pgtype.Text        `json:"secret_hash"`
+	Name                   string             `json:"name"`
+	LogoUrl                pgtype.Text        `json:"logo_url"`
+	IsPublic               bool               `json:"is_public"`
+	IsFirstParty           bool               `json:"is_first_party"`
+	RedirectUris           []string           `json:"redirect_uris"`
+	PostLogoutRedirectUris []string           `json:"post_logout_redirect_uris"`
+	GrantTypes             []string           `json:"grant_types"`
+	Scopes                 []string           `json:"scopes"`
+	Audiences              []string           `json:"audiences"`
+	RolesClaim             string             `json:"roles_claim"`
+	AccessTtl              pgtype.Interval    `json:"access_ttl"`
+	RefreshTtl             pgtype.Interval    `json:"refresh_ttl"`
+	MaxAge                 pgtype.Interval    `json:"max_age"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	AccessTtlSeconds       int64              `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64              `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          int64              `json:"max_age_seconds"`
+}
+
+func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (GetClientByClientIDRow, error) {
 	row := q.db.QueryRow(ctx, getClientByClientID, clientID)
-	var i OauthClient
+	var i GetClientByClientIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.ClientID,
@@ -132,24 +198,57 @@ func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Oau
 		&i.DisabledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AccessTtlSeconds,
+		&i.RefreshTtlSeconds,
+		&i.MaxAgeSeconds,
 	)
 	return i, err
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at FROM oauth_clients
+SELECT id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at,
+       EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+       EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+       COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
+FROM oauth_clients
 ORDER BY created_at, client_id
 `
 
-func (q *Queries) ListClients(ctx context.Context) ([]OauthClient, error) {
+type ListClientsRow struct {
+	ID                     uuid.UUID          `json:"id"`
+	ClientID               string             `json:"client_id"`
+	SecretHash             pgtype.Text        `json:"secret_hash"`
+	Name                   string             `json:"name"`
+	LogoUrl                pgtype.Text        `json:"logo_url"`
+	IsPublic               bool               `json:"is_public"`
+	IsFirstParty           bool               `json:"is_first_party"`
+	RedirectUris           []string           `json:"redirect_uris"`
+	PostLogoutRedirectUris []string           `json:"post_logout_redirect_uris"`
+	GrantTypes             []string           `json:"grant_types"`
+	Scopes                 []string           `json:"scopes"`
+	Audiences              []string           `json:"audiences"`
+	RolesClaim             string             `json:"roles_claim"`
+	AccessTtl              pgtype.Interval    `json:"access_ttl"`
+	RefreshTtl             pgtype.Interval    `json:"refresh_ttl"`
+	MaxAge                 pgtype.Interval    `json:"max_age"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	AccessTtlSeconds       int64              `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64              `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          int64              `json:"max_age_seconds"`
+}
+
+func (q *Queries) ListClients(ctx context.Context) ([]ListClientsRow, error) {
 	rows, err := q.db.Query(ctx, listClients)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []OauthClient{}
+	items := []ListClientsRow{}
 	for rows.Next() {
-		var i OauthClient
+		var i ListClientsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ClientID,
@@ -171,6 +270,9 @@ func (q *Queries) ListClients(ctx context.Context) ([]OauthClient, error) {
 			&i.DisabledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AccessTtlSeconds,
+			&i.RefreshTtlSeconds,
+			&i.MaxAgeSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -211,34 +313,64 @@ SET name = $2,
     scopes = $9,
     audiences = $10,
     roles_claim = $11,
-    access_ttl = $12,
-    refresh_ttl = $13,
-    max_age = $14,
+    access_ttl = make_interval(secs => $12::bigint),
+    refresh_ttl = make_interval(secs => $13::bigint),
+    max_age = CASE WHEN $14::bigint IS NULL THEN NULL
+                   ELSE make_interval(secs => $14::bigint) END,
     owner_id = $15,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at
+RETURNING id, client_id, secret_hash, name, logo_url, is_public, is_first_party, redirect_uris, post_logout_redirect_uris, grant_types, scopes, audiences, roles_claim, access_ttl, refresh_ttl, max_age, owner_id, disabled_at, created_at, updated_at,
+          EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+          EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+          COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
 `
 
 type UpdateClientParams struct {
-	ID                     uuid.UUID       `json:"id"`
-	Name                   string          `json:"name"`
-	LogoUrl                pgtype.Text     `json:"logo_url"`
-	IsPublic               bool            `json:"is_public"`
-	IsFirstParty           bool            `json:"is_first_party"`
-	RedirectUris           []string        `json:"redirect_uris"`
-	PostLogoutRedirectUris []string        `json:"post_logout_redirect_uris"`
-	GrantTypes             []string        `json:"grant_types"`
-	Scopes                 []string        `json:"scopes"`
-	Audiences              []string        `json:"audiences"`
-	RolesClaim             string          `json:"roles_claim"`
-	AccessTtl              pgtype.Interval `json:"access_ttl"`
-	RefreshTtl             pgtype.Interval `json:"refresh_ttl"`
-	MaxAge                 pgtype.Interval `json:"max_age"`
-	OwnerID                pgtype.UUID     `json:"owner_id"`
+	ID                     uuid.UUID   `json:"id"`
+	Name                   string      `json:"name"`
+	LogoUrl                pgtype.Text `json:"logo_url"`
+	IsPublic               bool        `json:"is_public"`
+	IsFirstParty           bool        `json:"is_first_party"`
+	RedirectUris           []string    `json:"redirect_uris"`
+	PostLogoutRedirectUris []string    `json:"post_logout_redirect_uris"`
+	GrantTypes             []string    `json:"grant_types"`
+	Scopes                 []string    `json:"scopes"`
+	Audiences              []string    `json:"audiences"`
+	RolesClaim             string      `json:"roles_claim"`
+	AccessTtlSeconds       int64       `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64       `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          pgtype.Int8 `json:"max_age_seconds"`
+	OwnerID                pgtype.UUID `json:"owner_id"`
 }
 
-func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (OauthClient, error) {
+type UpdateClientRow struct {
+	ID                     uuid.UUID          `json:"id"`
+	ClientID               string             `json:"client_id"`
+	SecretHash             pgtype.Text        `json:"secret_hash"`
+	Name                   string             `json:"name"`
+	LogoUrl                pgtype.Text        `json:"logo_url"`
+	IsPublic               bool               `json:"is_public"`
+	IsFirstParty           bool               `json:"is_first_party"`
+	RedirectUris           []string           `json:"redirect_uris"`
+	PostLogoutRedirectUris []string           `json:"post_logout_redirect_uris"`
+	GrantTypes             []string           `json:"grant_types"`
+	Scopes                 []string           `json:"scopes"`
+	Audiences              []string           `json:"audiences"`
+	RolesClaim             string             `json:"roles_claim"`
+	AccessTtl              pgtype.Interval    `json:"access_ttl"`
+	RefreshTtl             pgtype.Interval    `json:"refresh_ttl"`
+	MaxAge                 pgtype.Interval    `json:"max_age"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	AccessTtlSeconds       int64              `json:"access_ttl_seconds"`
+	RefreshTtlSeconds      int64              `json:"refresh_ttl_seconds"`
+	MaxAgeSeconds          int64              `json:"max_age_seconds"`
+}
+
+func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (UpdateClientRow, error) {
 	row := q.db.QueryRow(ctx, updateClient,
 		arg.ID,
 		arg.Name,
@@ -251,12 +383,12 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Oau
 		arg.Scopes,
 		arg.Audiences,
 		arg.RolesClaim,
-		arg.AccessTtl,
-		arg.RefreshTtl,
-		arg.MaxAge,
+		arg.AccessTtlSeconds,
+		arg.RefreshTtlSeconds,
+		arg.MaxAgeSeconds,
 		arg.OwnerID,
 	)
-	var i OauthClient
+	var i UpdateClientRow
 	err := row.Scan(
 		&i.ID,
 		&i.ClientID,
@@ -278,6 +410,9 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Oau
 		&i.DisabledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AccessTtlSeconds,
+		&i.RefreshTtlSeconds,
+		&i.MaxAgeSeconds,
 	)
 	return i, err
 }

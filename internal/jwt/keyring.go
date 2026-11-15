@@ -27,7 +27,7 @@ type KeyRing struct {
 // NewKeyRing parses private RSA PEM values and builds a key ring. It derives
 // each public key and assigns a deterministic kid based on that public key.
 func NewKeyRing(privatePEMs []string) (*KeyRing, error) {
-	if privatePEMs == nil || len(privatePEMs) == 0 {
+	if len(privatePEMs) == 0 {
 		return nil, errors.New("private PEM list is empty")
 	}
 

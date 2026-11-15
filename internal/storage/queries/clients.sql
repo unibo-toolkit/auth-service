@@ -1,9 +1,17 @@
 -- name: GetClientByClientID :one
-SELECT * FROM oauth_clients
+SELECT *,
+       EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+       EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+       COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
+FROM oauth_clients
 WHERE client_id = $1;
 
 -- name: ListClients :many
-SELECT * FROM oauth_clients
+SELECT *,
+       EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+       EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+       COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds
+FROM oauth_clients
 ORDER BY created_at, client_id;
 
 -- name: CreateClient :one
@@ -14,9 +22,16 @@ INSERT INTO oauth_clients (
 ) VALUES (
     $1, $2, $3, $4, $5, $6,
     $7, $8, $9, $10, $11,
-    $12, $13, $14, $15, $16, $17
+    $12, make_interval(secs => sqlc.arg(access_ttl_seconds)::bigint),
+    make_interval(secs => sqlc.arg(refresh_ttl_seconds)::bigint),
+    CASE WHEN sqlc.narg(max_age_seconds)::bigint IS NULL THEN NULL
+         ELSE make_interval(secs => sqlc.narg(max_age_seconds)::bigint) END,
+    sqlc.narg(owner_id), sqlc.narg(disabled_at)
 )
-RETURNING *;
+RETURNING *,
+          EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+          EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+          COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds;
 
 -- name: UpdateClient :one
 UPDATE oauth_clients
@@ -30,13 +45,17 @@ SET name = $2,
     scopes = $9,
     audiences = $10,
     roles_claim = $11,
-    access_ttl = $12,
-    refresh_ttl = $13,
-    max_age = $14,
-    owner_id = $15,
+    access_ttl = make_interval(secs => sqlc.arg(access_ttl_seconds)::bigint),
+    refresh_ttl = make_interval(secs => sqlc.arg(refresh_ttl_seconds)::bigint),
+    max_age = CASE WHEN sqlc.narg(max_age_seconds)::bigint IS NULL THEN NULL
+                   ELSE make_interval(secs => sqlc.narg(max_age_seconds)::bigint) END,
+    owner_id = sqlc.narg(owner_id),
     updated_at = NOW()
 WHERE id = $1
-RETURNING *;
+RETURNING *,
+          EXTRACT(EPOCH FROM access_ttl)::bigint  AS access_ttl_seconds,
+          EXTRACT(EPOCH FROM refresh_ttl)::bigint AS refresh_ttl_seconds,
+          COALESCE(EXTRACT(EPOCH FROM max_age), 0)::bigint AS max_age_seconds;
 
 -- name: SetClientSecret :exec
 UPDATE oauth_clients
