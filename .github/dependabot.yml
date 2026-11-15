@@ -1,4 +1,3 @@
-
 version: 2
 
 updates:
@@ -33,4 +32,3 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
-
