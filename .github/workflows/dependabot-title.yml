@@ -1,0 +1,29 @@
+
+name: Dependabot PR title
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  rename:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Append #patch to PR title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ "$PR_TITLE" != *"#patch" ]]; then
+            gh api \
+              --method PATCH \
+              "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
+              -f "title=$PR_TITLE #patch"
+          fi
+

@@ -21,9 +21,6 @@ updates:
       - "dependencies"
       - "tag: patch"
 
-    commit-message:
-      prefix: "#patch "
-
     groups:
       dependencies:
         applies-to: version-updates
