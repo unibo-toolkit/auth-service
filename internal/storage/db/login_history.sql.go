@@ -15,13 +15,14 @@ import (
 
 const createLoginHistory = `-- name: CreateLoginHistory :one
 INSERT INTO login_history (
-    user_id, oauth_provider, ip_address, user_agent, success, failure_reason
-) VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, oauth_provider, ip_address, user_agent, success, failure_reason, created_at
+    user_id, client_id, oauth_provider, ip_address, user_agent, success, failure_reason
+) VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, oauth_provider, ip_address, user_agent, success, failure_reason, created_at, client_id
 `
 
 type CreateLoginHistoryParams struct {
 	UserID        uuid.UUID   `json:"user_id"`
+	ClientID      pgtype.UUID `json:"client_id"`
 	OauthProvider pgtype.Text `json:"oauth_provider"`
 	IpAddress     *netip.Addr `json:"ip_address"`
 	UserAgent     pgtype.Text `json:"user_agent"`
@@ -32,6 +33,7 @@ type CreateLoginHistoryParams struct {
 func (q *Queries) CreateLoginHistory(ctx context.Context, arg CreateLoginHistoryParams) (LoginHistory, error) {
 	row := q.db.QueryRow(ctx, createLoginHistory,
 		arg.UserID,
+		arg.ClientID,
 		arg.OauthProvider,
 		arg.IpAddress,
 		arg.UserAgent,
@@ -48,12 +50,13 @@ func (q *Queries) CreateLoginHistory(ctx context.Context, arg CreateLoginHistory
 		&i.Success,
 		&i.FailureReason,
 		&i.CreatedAt,
+		&i.ClientID,
 	)
 	return i, err
 }
 
 const getLoginHistory = `-- name: GetLoginHistory :many
-SELECT id, user_id, oauth_provider, ip_address, user_agent, success, failure_reason, created_at FROM login_history
+SELECT id, user_id, oauth_provider, ip_address, user_agent, success, failure_reason, created_at, client_id FROM login_history
 WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT 50
@@ -77,6 +80,7 @@ func (q *Queries) GetLoginHistory(ctx context.Context, userID uuid.UUID) ([]Logi
 			&i.Success,
 			&i.FailureReason,
 			&i.CreatedAt,
+			&i.ClientID,
 		); err != nil {
 			return nil, err
 		}

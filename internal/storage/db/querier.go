@@ -8,31 +8,58 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AttachAuthRequestSession(ctx context.Context, arg AttachAuthRequestSessionParams) (AuthRequest, error)
+	CompleteAuthRequest(ctx context.Context, id uuid.UUID) (AuthRequest, error)
+	ConsumeAuthRequestFederationState(ctx context.Context, federationState pgtype.Text) (AuthRequest, error)
+	ConsumeAuthorizationCode(ctx context.Context, codeHash string) (OauthAuthorizationCode, error)
+	CreateAuthRequest(ctx context.Context, arg CreateAuthRequestParams) (AuthRequest, error)
+	CreateAuthorizationCode(ctx context.Context, arg CreateAuthorizationCodeParams) (OauthAuthorizationCode, error)
+	CreateClient(ctx context.Context, arg CreateClientParams) (OauthClient, error)
 	CreateLoginHistory(ctx context.Context, arg CreateLoginHistoryParams) (LoginHistory, error)
 	CreateOAuthProvider(ctx context.Context, arg CreateOAuthProviderParams) (OauthProvider, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
+	CreateSSOSession(ctx context.Context, arg CreateSSOSessionParams) (SsoSession, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DisableClient(ctx context.Context, id uuid.UUID) error
+	GetActiveConsent(ctx context.Context, arg GetActiveConsentParams) (OauthConsent, error)
 	GetActiveSessionFamilies(ctx context.Context, userID uuid.UUID) ([]GetActiveSessionFamiliesRow, error)
 	GetActiveSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
+	GetAuthRequest(ctx context.Context, id uuid.UUID) (AuthRequest, error)
+	GetAuthorizationCodeByHash(ctx context.Context, codeHash string) (OauthAuthorizationCode, error)
+	GetClientByClientID(ctx context.Context, clientID string) (OauthClient, error)
 	GetLoginHistory(ctx context.Context, userID uuid.UUID) ([]LoginHistory, error)
 	GetOAuthProvider(ctx context.Context, arg GetOAuthProviderParams) (OauthProvider, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRoleByName(ctx context.Context, name string) (Role, error)
+	GetSSOSessionByHash(ctx context.Context, tokenHash string) (SsoSession, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
+	ListActiveSSOSessions(ctx context.Context, userID uuid.UUID) ([]SsoSession, error)
+	ListClients(ctx context.Context) ([]OauthClient, error)
+	MarkAuthRequestConsented(ctx context.Context, id uuid.UUID) (AuthRequest, error)
+	RevokeAllUserSSOSessions(ctx context.Context, arg RevokeAllUserSSOSessionsParams) error
 	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeAllUserTokensForDeletion(ctx context.Context, userID uuid.UUID) error
+	RevokeConsent(ctx context.Context, arg RevokeConsentParams) error
 	RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error
+	RevokeSSOSession(ctx context.Context, arg RevokeSSOSessionParams) error
+	RevokeSessionRefreshTokens(ctx context.Context, arg RevokeSessionRefreshTokensParams) error
 	RevokeTokenFamily(ctx context.Context, familyID uuid.UUID) error
+	SetAuthRequestFederationState(ctx context.Context, arg SetAuthRequestFederationStateParams) (AuthRequest, error)
+	SetClientSecret(ctx context.Context, arg SetClientSecretParams) error
+	TouchSSOSession(ctx context.Context, arg TouchSSOSessionParams) (SsoSession, error)
+	UpdateClient(ctx context.Context, arg UpdateClientParams) (OauthClient, error)
 	UpdateLastLogin(ctx context.Context, id uuid.UUID) error
 	UpdateTokenUsedAt(ctx context.Context, id uuid.UUID) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpsertConsent(ctx context.Context, arg UpsertConsentParams) (OauthConsent, error)
 }
 
 var _ Querier = (*Queries)(nil)

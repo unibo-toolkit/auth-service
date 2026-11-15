@@ -56,6 +56,36 @@ func (ns NullCourseType) Value() (driver.Value, error) {
 	return string(ns.CourseType), nil
 }
 
+type AdminAudit struct {
+	ID        uuid.UUID          `json:"id"`
+	ActorID   pgtype.UUID        `json:"actor_id"`
+	Action    string             `json:"action"`
+	Target    pgtype.Text        `json:"target"`
+	Payload   []byte             `json:"payload"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type AuthRequest struct {
+	ID                  uuid.UUID          `json:"id"`
+	ClientID            uuid.UUID          `json:"client_id"`
+	RedirectUri         string             `json:"redirect_uri"`
+	Scopes              []string           `json:"scopes"`
+	State               pgtype.Text        `json:"state"`
+	Nonce               pgtype.Text        `json:"nonce"`
+	CodeChallenge       string             `json:"code_challenge"`
+	CodeChallengeMethod string             `json:"code_challenge_method"`
+	Prompt              pgtype.Text        `json:"prompt"`
+	MaxAge              pgtype.Interval    `json:"max_age"`
+	ProviderHint        pgtype.Text        `json:"provider_hint"`
+	FederationState     pgtype.Text        `json:"federation_state"`
+	FederationNonce     pgtype.Text        `json:"federation_nonce"`
+	SessionID           pgtype.UUID        `json:"session_id"`
+	ConsentGranted      bool               `json:"consent_granted"`
+	CompletedAt         pgtype.Timestamptz `json:"completed_at"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+}
+
 type CalendarCourse struct {
 	ID           uuid.UUID          `json:"id"`
 	CalendarID   uuid.UUID          `json:"calendar_id"`
@@ -112,6 +142,12 @@ type Classroom struct {
 	Longitude pgtype.Numeric `json:"longitude"`
 }
 
+type ClientRoleMapping struct {
+	ClientID   uuid.UUID `json:"client_id"`
+	RoleID     uuid.UUID `json:"role_id"`
+	ClaimValue string    `json:"claim_value"`
+}
+
 type Course struct {
 	ID            uuid.UUID          `json:"id"`
 	UniboID       int32              `json:"unibo_id"`
@@ -148,6 +184,54 @@ type LoginHistory struct {
 	Success       bool               `json:"success"`
 	FailureReason pgtype.Text        `json:"failure_reason"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ClientID      pgtype.UUID        `json:"client_id"`
+}
+
+type OauthAuthorizationCode struct {
+	ID                  uuid.UUID          `json:"id"`
+	CodeHash            string             `json:"code_hash"`
+	ClientID            uuid.UUID          `json:"client_id"`
+	UserID              uuid.UUID          `json:"user_id"`
+	SessionID           uuid.UUID          `json:"session_id"`
+	RedirectUri         string             `json:"redirect_uri"`
+	Scopes              []string           `json:"scopes"`
+	Nonce               pgtype.Text        `json:"nonce"`
+	CodeChallenge       string             `json:"code_challenge"`
+	CodeChallengeMethod string             `json:"code_challenge_method"`
+	AuthTime            pgtype.Timestamptz `json:"auth_time"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt          pgtype.Timestamptz `json:"consumed_at"`
+}
+
+type OauthClient struct {
+	ID                     uuid.UUID          `json:"id"`
+	ClientID               string             `json:"client_id"`
+	SecretHash             pgtype.Text        `json:"secret_hash"`
+	Name                   string             `json:"name"`
+	LogoUrl                pgtype.Text        `json:"logo_url"`
+	IsPublic               bool               `json:"is_public"`
+	IsFirstParty           bool               `json:"is_first_party"`
+	RedirectUris           []string           `json:"redirect_uris"`
+	PostLogoutRedirectUris []string           `json:"post_logout_redirect_uris"`
+	GrantTypes             []string           `json:"grant_types"`
+	Scopes                 []string           `json:"scopes"`
+	Audiences              []string           `json:"audiences"`
+	RolesClaim             string             `json:"roles_claim"`
+	AccessTtl              pgtype.Interval    `json:"access_ttl"`
+	RefreshTtl             pgtype.Interval    `json:"refresh_ttl"`
+	MaxAge                 pgtype.Interval    `json:"max_age"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	DisabledAt             pgtype.Timestamptz `json:"disabled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+}
+
+type OauthConsent struct {
+	UserID    uuid.UUID          `json:"user_id"`
+	ClientID  uuid.UUID          `json:"client_id"`
+	Scopes    []string           `json:"scopes"`
+	GrantedAt pgtype.Timestamptz `json:"granted_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
 type OauthProvider struct {
@@ -158,6 +242,12 @@ type OauthProvider struct {
 	Email      pgtype.Text        `json:"email"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type RateLimit struct {
+	Bucket   string             `json:"bucket"`
+	WindowAt pgtype.Timestamptz `json:"window_at"`
+	Counter  int32              `json:"counter"`
 }
 
 type RefreshToken struct {
@@ -174,6 +264,9 @@ type RefreshToken struct {
 	UsedAt        pgtype.Timestamptz `json:"used_at"`
 	RevokedAt     pgtype.Timestamptz `json:"revoked_at"`
 	RevokedReason pgtype.Text        `json:"revoked_reason"`
+	ClientID      pgtype.UUID        `json:"client_id"`
+	SessionID     pgtype.UUID        `json:"session_id"`
+	Scopes        []string           `json:"scopes"`
 }
 
 type Role struct {
@@ -181,6 +274,22 @@ type Role struct {
 	Name        string             `json:"name"`
 	Description pgtype.Text        `json:"description"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type SsoSession struct {
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	TokenHash     string             `json:"token_hash"`
+	AuthTime      pgtype.Timestamptz `json:"auth_time"`
+	Amr           pgtype.Text        `json:"amr"`
+	IpAddress     *netip.Addr        `json:"ip_address"`
+	UserAgent     pgtype.Text        `json:"user_agent"`
+	DeviceName    pgtype.Text        `json:"device_name"`
+	LastSeenAt    pgtype.Timestamptz `json:"last_seen_at"`
+	IdleExpiresAt pgtype.Timestamptz `json:"idle_expires_at"`
+	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt     pgtype.Timestamptz `json:"revoked_at"`
+	RevokedReason pgtype.Text        `json:"revoked_reason"`
 }
 
 type Subject struct {

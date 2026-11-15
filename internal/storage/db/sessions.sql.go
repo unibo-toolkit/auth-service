@@ -15,10 +15,10 @@ import (
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
 INSERT INTO refresh_tokens (
-    user_id, token_hash, family_id, parent_id,
+    user_id, token_hash, family_id, parent_id, client_id, session_id, scopes,
     ip_address, user_agent, device_name, expires_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason, client_id, session_id, scopes
 `
 
 type CreateRefreshTokenParams struct {
@@ -26,6 +26,9 @@ type CreateRefreshTokenParams struct {
 	TokenHash  string             `json:"token_hash"`
 	FamilyID   uuid.UUID          `json:"family_id"`
 	ParentID   pgtype.UUID        `json:"parent_id"`
+	ClientID   pgtype.UUID        `json:"client_id"`
+	SessionID  pgtype.UUID        `json:"session_id"`
+	Scopes     []string           `json:"scopes"`
 	IpAddress  *netip.Addr        `json:"ip_address"`
 	UserAgent  pgtype.Text        `json:"user_agent"`
 	DeviceName pgtype.Text        `json:"device_name"`
@@ -38,6 +41,9 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		arg.TokenHash,
 		arg.FamilyID,
 		arg.ParentID,
+		arg.ClientID,
+		arg.SessionID,
+		arg.Scopes,
 		arg.IpAddress,
 		arg.UserAgent,
 		arg.DeviceName,
@@ -58,6 +64,9 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		&i.UsedAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.ClientID,
+		&i.SessionID,
+		&i.Scopes,
 	)
 	return i, err
 }
@@ -117,7 +126,7 @@ func (q *Queries) GetActiveSessionFamilies(ctx context.Context, userID uuid.UUID
 }
 
 const getActiveSessionsByUserID = `-- name: GetActiveSessionsByUserID :many
-SELECT id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason FROM refresh_tokens
+SELECT id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason, client_id, session_id, scopes FROM refresh_tokens
 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
 ORDER BY created_at DESC
 LIMIT 20
@@ -146,6 +155,9 @@ func (q *Queries) GetActiveSessionsByUserID(ctx context.Context, userID uuid.UUI
 			&i.UsedAt,
 			&i.RevokedAt,
 			&i.RevokedReason,
+			&i.ClientID,
+			&i.SessionID,
+			&i.Scopes,
 		); err != nil {
 			return nil, err
 		}
@@ -158,7 +170,7 @@ func (q *Queries) GetActiveSessionsByUserID(ctx context.Context, userID uuid.UUI
 }
 
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
-SELECT id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason FROM refresh_tokens WHERE token_hash = $1
+SELECT id, user_id, token_hash, family_id, parent_id, ip_address, user_agent, device_name, expires_at, created_at, used_at, revoked_at, revoked_reason, client_id, session_id, scopes FROM refresh_tokens WHERE token_hash = $1
 `
 
 func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
@@ -178,6 +190,9 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 		&i.UsedAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.ClientID,
+		&i.SessionID,
+		&i.Scopes,
 	)
 	return i, err
 }
@@ -217,6 +232,22 @@ type RevokeRefreshTokenParams struct {
 
 func (q *Queries) RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error {
 	_, err := q.db.Exec(ctx, revokeRefreshToken, arg.ID, arg.RevokedReason)
+	return err
+}
+
+const revokeSessionRefreshTokens = `-- name: RevokeSessionRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW(), revoked_reason = $2
+WHERE session_id = $1 AND revoked_at IS NULL
+`
+
+type RevokeSessionRefreshTokensParams struct {
+	SessionID     pgtype.UUID `json:"session_id"`
+	RevokedReason pgtype.Text `json:"revoked_reason"`
+}
+
+func (q *Queries) RevokeSessionRefreshTokens(ctx context.Context, arg RevokeSessionRefreshTokensParams) error {
+	_, err := q.db.Exec(ctx, revokeSessionRefreshTokens, arg.SessionID, arg.RevokedReason)
 	return err
 }
 

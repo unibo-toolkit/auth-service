@@ -1,8 +1,8 @@
 -- name: CreateRefreshToken :one
 INSERT INTO refresh_tokens (
-    user_id, token_hash, family_id, parent_id,
+    user_id, token_hash, family_id, parent_id, client_id, session_id, scopes,
     ip_address, user_agent, device_name, expires_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: GetRefreshTokenByHash :one
@@ -39,6 +39,11 @@ WHERE family_id = $1 AND revoked_at IS NULL;
 UPDATE refresh_tokens
 SET revoked_at = NOW(), revoked_reason = 'logout_all'
 WHERE user_id = $1 AND revoked_at IS NULL;
+
+-- name: RevokeSessionRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW(), revoked_reason = $2
+WHERE session_id = $1 AND revoked_at IS NULL;
 
 -- name: RevokeAllUserTokensForDeletion :exec
 UPDATE refresh_tokens

@@ -1,7 +1,7 @@
 -- name: CreateLoginHistory :one
 INSERT INTO login_history (
-    user_id, oauth_provider, ip_address, user_agent, success, failure_reason
-) VALUES ($1, $2, $3, $4, $5, $6)
+    user_id, client_id, oauth_provider, ip_address, user_agent, success, failure_reason
+) VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetLoginHistory :many
