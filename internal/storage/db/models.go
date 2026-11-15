@@ -64,19 +64,27 @@ type CalendarCourse struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type CalendarExcludedFamily struct {
+	ID         uuid.UUID          `json:"id"`
+	CalendarID uuid.UUID          `json:"calendar_id"`
+	FamilyHash string             `json:"family_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
 type CalendarLink struct {
-	ID             uuid.UUID          `json:"id"`
-	Slug           string             `json:"slug"`
-	OwnerID        pgtype.UUID        `json:"owner_id"`
-	Name           string             `json:"name"`
-	Description    pgtype.Text        `json:"description"`
-	IsPublic       bool               `json:"is_public"`
-	AccessCount    int32              `json:"access_count"`
-	LastAccessedAt pgtype.Timestamptz `json:"last_accessed_at"`
-	TtlExpiresAt   pgtype.Timestamptz `json:"ttl_expires_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	Lang           string             `json:"lang"`
+	ID                uuid.UUID          `json:"id"`
+	Slug              string             `json:"slug"`
+	OwnerID           pgtype.UUID        `json:"owner_id"`
+	Name              string             `json:"name"`
+	Description       pgtype.Text        `json:"description"`
+	IsPublic          bool               `json:"is_public"`
+	AccessCount       int32              `json:"access_count"`
+	LastAccessedAt    pgtype.Timestamptz `json:"last_accessed_at"`
+	TtlExpiresAt      pgtype.Timestamptz `json:"ttl_expires_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	Lang              string             `json:"lang"`
+	FormatEventTitles bool               `json:"format_event_titles"`
 }
 
 type CalendarSubject struct {
@@ -205,6 +213,7 @@ type TimetableEvent struct {
 	ContentHash   string             `json:"content_hash"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	FamilyHash    pgtype.Text        `json:"family_hash"`
 }
 
 type User struct {
