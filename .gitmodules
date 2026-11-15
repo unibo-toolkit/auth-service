@@ -1,0 +1,3 @@
+[submodule "external/databases"]
+	path = external/databases
+	url = git@github.com:unibo-toolkit/databases.git

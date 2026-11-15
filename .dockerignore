@@ -1,0 +1,40 @@
+# Version control and repository metadata
+.git
+.gitignore
+.github
+
+# Local editor and agent configuration
+.idea
+.vscode
+.claude
+.agents
+.codex
+.DS_Store
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+keys
+*.pem
+*.p8
+internal/storage/migrations/
+
+# Build output and test artifacts
+bin
+dist
+coverage.out
+*.test
+*.out
+*.log
+
+# Files not required to compile the service
+local_tests
+plans
+**/*_test.go
+
+# Local orchestration and documentation
+docker-compose*.yml
+docker-compose*.yaml
+README.md
+LICENSE

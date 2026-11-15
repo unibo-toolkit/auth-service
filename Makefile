@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 DB_URL ?= postgresql://unibo_user:unibo_pass@localhost:5432/unibo_toolkit?sslmode=disable
-MIGRATIONS_DIR ?= ../databases/migrations
+MIGRATIONS_DIR ?= external/databases/migrations
 
 .PHONY: setup
 setup:
@@ -19,8 +19,8 @@ setup:
 		echo "RSA keys already exist"; \
 	fi
 	@echo "\n==> Checking databases repo..."
-	@if [ ! -d "../databases" ]; then \
-		cd .. && git clone https://github.com/unibo-toolkit/databases.git; \
+	@if [ ! -d "external/databases/migrations" ]; then \
+		git submodule update --init --recursive; \
 	else \
 		echo "databases repo already exists"; \
 	fi
@@ -71,6 +71,12 @@ sqlc:
 	@echo "==> Generating models with sqlc..."
 	cd internal/storage && sqlc generate
 	@echo "[OK] Models generated in internal/repository/db/"
+
+.PHONY: update-migrations
+update-migrations:
+	@echo "==> Updating migrations from databases repo..."
+	git submodule update --remote --merge
+	@echo "[OK] Migrations updated!"
 
 .PHONY: build
 build:
