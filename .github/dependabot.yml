@@ -16,10 +16,12 @@ updates:
     cooldown:
       default-days: 7
 
-    # Label для автоматизации релизов
     labels:
       - "dependencies"
       - "tag: patch"
+
+    commit-message:
+      prefix: "build(deps): "
 
     groups:
       dependencies:
