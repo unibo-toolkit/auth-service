@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/unibo-toolkit/auth-service/internal/config"
 	httpServer "github.com/unibo-toolkit/auth-service/internal/http/auth"
 	"github.com/unibo-toolkit/auth-service/internal/storage"
 )
@@ -17,8 +18,9 @@ type App struct {
 	storage    *storage.Storage
 }
 
-func NewApp(log *slog.Logger, st *storage.Storage) *App {
-	server := httpServer.New(log, st)
+// NewApp constructs the HTTP application and registers all routes.
+func NewApp(log *slog.Logger, st *storage.Storage, cfg *config.Config) *App {
+	server := httpServer.New(log, st, cfg)
 	server.RegisterRoutes()
 
 	return &App{

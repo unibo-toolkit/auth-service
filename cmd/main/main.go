@@ -19,8 +19,8 @@ func main() {
 
 	log.Info("Starting auth service", slog.Int("port", int(cfg.Http.Port)), slog.String("environment", cfg.Http.Environment))
 
-	st := storage.New(log)
-	application := app.New(log, st)
+	st := storage.New(log, cfg.DB)
+	application := app.New(log, st, cfg)
 
 	addr := fmt.Sprintf(":%d", cfg.Http.Port)
 	application.HttpApp.Run(addr)

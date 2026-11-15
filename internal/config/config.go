@@ -10,7 +10,6 @@ import (
 type Config struct {
 	Http    HttpConfig
 	DB      DBConfig
-	JWT     JWTConfig
 	OIDC    OIDCConfig
 	Session SessionConfig
 	OAuth   OAuthConfig
@@ -21,10 +20,10 @@ type Config struct {
 type OIDCConfig struct {
 	Issuer         string        `env:"OIDC_ISSUER" env-required:"true"`
 	UIBaseURL      string        `env:"OIDC_UI_BASE_URL" env-required:"true"`
-	SigningKeys    []string      `env:"OIDC_SIGNING_KEYS" env-required:"true" env-separator:";;"`
+	SigningKeys    []string      `env:"JWT_SIGNING_KEYS" env-required:"true" env-separator:";;"`
 	APIAudience    string        `env:"OIDC_API_AUDIENCE" env-default:"uniplanner-api"`
-	AuthRequestTTL time.Duration `env:"OIDC_AUTH_REQUEST_TTL" env-default:"10m"`
-	AuthCodeTTL    time.Duration `env:"OIDC_AUTH_CODE_TTL" env-default:"60s"`
+	AuthRequestTTL time.Duration `env:"AUTH_REQUEST_TTL" env-default:"10m"`
+	AuthCodeTTL    time.Duration `env:"AUTH_CODE_TTL" env-default:"60s"`
 }
 
 // SessionConfig holds the session cookie name and TTLs. The absolute TTL is the
@@ -56,16 +55,6 @@ type DBConfig struct {
 	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" env-default:"1800000000000ns"`
 }
 
-type JWTConfig struct {
-	PrivateKey      string        `env:"JWT_PRIVATE_KEY" env-required:"true"`
-	PublicKey       string        `env:"JWT_PUBLIC_KEY" env-required:"true"`
-	AccessTokenTTL  time.Duration `env:"ACCESS_TOKEN_TTL" env-default:"15m"`
-	RefreshTokenTTL time.Duration `env:"REFRESH_TOKEN_TTL" env-default:"720h"`
-	Issuer          string        `env:"JWT_ISSUER" env-default:"uniplanner.it"`
-	Audience        string        `env:"JWT_AUDIENCE" env-default:"uniplanner.it"`
-	Kid             string        `env:"JWT_KID" env-default:"key-2026-01"`
-}
-
 type OAuthConfig struct {
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
@@ -78,8 +67,7 @@ type OAuthConfig struct {
 }
 
 // MustLoad reads the configuration from the environment and panics when a
-// required variable is missing. It is called during package initialization, so a
-// missing JWT key pair stops the process before any request is served.
+// required variable is missing.
 func MustLoad() *Config {
 	var cfg Config
 

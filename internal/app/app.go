@@ -6,6 +6,7 @@ import (
 	"time"
 
 	httpapp "github.com/unibo-toolkit/auth-service/internal/app/http"
+	"github.com/unibo-toolkit/auth-service/internal/config"
 	"github.com/unibo-toolkit/auth-service/internal/storage"
 )
 
@@ -15,8 +16,9 @@ type App struct {
 	HttpApp *httpapp.App
 }
 
-func New(log *slog.Logger, st *storage.Storage) *App {
-	httpApp := httpapp.NewApp(log, st)
+// New constructs the application and wires its HTTP dependencies.
+func New(log *slog.Logger, st *storage.Storage, cfg *config.Config) *App {
+	httpApp := httpapp.NewApp(log, st, cfg)
 
 	return &App{
 		HttpApp: httpApp,

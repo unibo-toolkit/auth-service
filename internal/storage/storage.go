@@ -23,8 +23,7 @@ type Storage struct {
 
 // Config builds the pool configuration from the DB_* variables. The connection
 // string is assembled with sslmode=disable.
-func Config() *pgxpool.Config {
-	cfg := config.MustLoad().DB
+func Config(cfg config.DBConfig) *pgxpool.Config {
 	databaseURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.User, cfg.Pass, cfg.Host, cfg.Port, cfg.Name)
@@ -45,8 +44,8 @@ func Config() *pgxpool.Config {
 
 // New opens the pool and fails fast: it panics when the pool cannot be created
 // or the database does not answer a ping.
-func New(log *slog.Logger) *Storage {
-	conn, err := pgxpool.NewWithConfig(context.Background(), Config())
+func New(log *slog.Logger, cfg config.DBConfig) *Storage {
+	conn, err := pgxpool.NewWithConfig(context.Background(), Config(cfg))
 	if err != nil {
 		log.Error("Failed to create a connection", "error", err)
 		panic(err)
