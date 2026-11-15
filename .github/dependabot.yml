@@ -1,0 +1,37 @@
+
+version: 2
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "Europe/Rome"
+
+    open-pull-requests-limit: 5
+
+    cooldown:
+      default-days: 7
+
+    # Label для автоматизации релизов
+    labels:
+      - "dependencies"
+      - "tag: patch"
+
+    commit-message:
+      prefix: "#patch "
+
+    groups:
+      dependencies:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
